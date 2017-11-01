@@ -494,4 +494,39 @@ public class Rfc7234ProxyIT
     {
         k3po.finish();
     }
+
+    //
+    @Test
+    @Specification({
+        "${route}/proxy/controller",
+        "${streams}/invalidate.multiple.max-age/accept/client",
+        "${streams}/invalidate.multiple.max-age/accept/server",
+    })
+    public void shouldNotCacheWithMultipleMaxAge() throws Exception
+    {
+        k3po.finish();
+    }
+
+    @Test
+    @Specification({
+        "${route}/proxy/controller",
+        "${streams}/not.use.cache.that.varys.with.asterisk.value/accept/client",
+        "${streams}/not.use.cache.that.varys.with.asterisk.value/connect/server",
+    })
+    public void shouldNotUseCacheForRequestThatHasAsteriskSymbolValueInVary() throws Exception
+    {
+        k3po.finish();
+    }
+
+    @Test
+    @Specification({
+            "${route}/proxy/controller",
+            "${streams}/cache.with.freshened.response.that.updated.by.strong.validator/accept/client",
+            "${streams}/cache.with.freshened.response.that.updated.by.strong.validator/connect/server",
+    })
+    public void shouldCacheWithFreshenedResponseThatUpdatedByStromgValidator() throws Exception
+    {
+        k3po.finish();
+    }
+
 }

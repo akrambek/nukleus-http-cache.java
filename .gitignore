@@ -12,3 +12,4 @@ buildNumber.properties
 .settings/
 .checkstyle
 /.idea/
+/nukleus-http-cache.iml
