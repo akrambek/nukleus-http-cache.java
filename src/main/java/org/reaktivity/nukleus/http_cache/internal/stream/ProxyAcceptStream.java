@@ -136,7 +136,7 @@ final class ProxyAcceptStream
             // Should already be canonicalized in http / http2 nuklei
             final String requestURL = getRequestURL(requestHeaders);
 
-            this.requestURLHash = requestURL.hashCode();
+            this.requestURLHash = 31 * authorizationScope + requestURL.hashCode();
 
             if (PreferHeader.preferResponseWhenModified(requestHeaders))
             {
@@ -173,8 +173,6 @@ final class ProxyAcceptStream
             acceptReply,
             acceptReplyStreamId,
             acceptCorrelationId,
-            streamFactory.correlationResponseBufferPool,
-            streamFactory.correlationRequestBufferPool,
             requestSlot,
             requestSize,
             streamFactory.router,
@@ -184,10 +182,11 @@ final class ProxyAcceptStream
 
         this.request = onUpdateRequest;
 
-        if (!streamFactory.cache.handleOnUpdateRequest(requestURLHash, onUpdateRequest, requestHeaders, authScope))
-        {
-            streamFactory.writer.do503AndAbort(acceptReply, authScope, authScope);
-        }
+        streamFactory.cache.handleOnUpdateRequest(
+                requestURLHash,
+                onUpdateRequest,
+                requestHeaders,
+                authScope);
         this.streamState = this::handleAllFramesByIgnoring;
     }
 
@@ -207,26 +206,6 @@ final class ProxyAcceptStream
                 streamFactory.supplyCorrelationId,
                 streamFactory.supplyStreamId,
                 requestURLHash,
-                streamFactory.correlationResponseBufferPool,
-                streamFactory.correlationRequestBufferPool,
-                requestSlot,
-                requestSize,
-                streamFactory.router,
-                authScope,
-                streamFactory.supplyEtag.get());
-
-        this.request = cacheableRequest = new InitialRequest(
-                acceptName,
-                acceptReply,
-                acceptReplyStreamId,
-                acceptCorrelationId,
-                connect,
-                connectRef,
-                streamFactory.supplyCorrelationId,
-                streamFactory.supplyStreamId,
-                requestURLHash,
-                streamFactory.correlationResponseBufferPool,
-                streamFactory.correlationRequestBufferPool,
                 requestSlot,
                 requestSize,
                 streamFactory.router,
@@ -239,13 +218,16 @@ final class ProxyAcceptStream
             {
                 // TODO move this logic and edge case inside of cache
                 send504();
-                this.request.purge();
             }
             else
             {
                 sendBeginToConnect(requestHeaders);
                 streamFactory.writer.doHttpEnd(connect, connectStreamId);
             }
+        }
+        else
+        {
+            this.request.purge(streamFactory.requestBufferPool);
         }
         this.streamState = this::handleAllFramesByIgnoring;
     }
@@ -300,6 +282,7 @@ final class ProxyAcceptStream
     {
         streamFactory.writer.doReset(acceptThrottle, acceptStreamId);
         streamFactory.writer.do503AndAbort(acceptReply, acceptReplyStreamId, acceptCorrelationId);
+        request.purge(streamFactory.requestBufferPool);
     }
 
     private void send504()
@@ -309,6 +292,7 @@ final class ProxyAcceptStream
                         .name(STATUS)
                         .value("504")));
         streamFactory.writer.doAbort(acceptReply, acceptReplyStreamId);
+        request.purge(streamFactory.requestBufferPool);
     }
 
     private void handleAllFramesByIgnoring(
@@ -341,6 +325,7 @@ final class ProxyAcceptStream
             break;
         case AbortFW.TYPE_ID:
             streamFactory.writer.doAbort(connect, connectStreamId);
+            request.purge(streamFactory.requestBufferPool);
             break;
         default:
             streamFactory.writer.doReset(acceptThrottle, acceptStreamId);

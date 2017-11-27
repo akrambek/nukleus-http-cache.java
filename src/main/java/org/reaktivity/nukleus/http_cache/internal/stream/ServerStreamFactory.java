@@ -21,6 +21,7 @@ import java.util.function.LongSupplier;
 
 import org.agrona.DirectBuffer;
 import org.agrona.MutableDirectBuffer;
+import org.reaktivity.nukleus.buffer.BufferPool;
 import org.reaktivity.nukleus.function.MessageConsumer;
 import org.reaktivity.nukleus.function.MessagePredicate;
 import org.reaktivity.nukleus.http_cache.internal.stream.util.Writer;
@@ -51,11 +52,14 @@ public class ServerStreamFactory implements StreamFactory
     public ServerStreamFactory(
         RouteManager router,
         MutableDirectBuffer writeBuffer,
-        LongSupplier supplyStreamId)
+        LongSupplier supplyStreamId,
+        BufferPool bufferPool)
     {
         this.router = requireNonNull(router);
         this.supplyStreamId = requireNonNull(supplyStreamId);
-        this.writer = new Writer(writeBuffer);
+        this.writer = new Writer(
+                writeBuffer,
+                bufferPool);
     }
 
     @Override

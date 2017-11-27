@@ -62,9 +62,10 @@ public final class CacheUtils
             switch (name)
             {
                 case CACHE_CONTROL:
-                    return value.contains("no-cache");
+                    // TODO remove need for max-age=0 (Currently can't handle multiple outstanding cache updates)
+                    return value.contains(CacheDirectives.NO_CACHE) || value.contains(CacheDirectives.MAX_AGE_0);
                 case METHOD:
-                    return !"GET".equalsIgnoreCase(value);
+                    return !HttpMethods.GET.equalsIgnoreCase(value);
                 case CONTENT_LENGTH:
                     return true;
                 case TRANSFER_ENCODING:
@@ -79,7 +80,7 @@ public final class CacheUtils
     {
         if (response.anyMatch(h ->
                 CACHE_CONTROL.equals(h.name().asString())
-                && h.value().asString().contains("private")))
+                && h.value().asString().contains(CacheDirectives.PRIVATE)))
         {
             return false;
         }
@@ -89,7 +90,7 @@ public final class CacheUtils
     public static boolean isPrivatelyCacheable(ListFW<HttpHeaderFW> response)
     {
         // TODO force passing of CacheControl as FW
-        String cacheControl = getHeader(response, "cache-control");
+        String cacheControl = getHeader(response, HttpHeaders.CACHE_CONTROL);
         if (cacheControl != null)
         {
             CacheControl parser = new CacheControl().parse(cacheControl);
@@ -130,12 +131,12 @@ public final class CacheUtils
         ListFW<HttpHeaderFW> cachedRequest,
         CacheControl cachedResponse)
     {
-        if (cachedResponse.contains("public"))
+        if (cachedResponse.contains(CacheDirectives.PUBLIC))
         {
             return true;
         }
 
-        if (cachedResponse.contains("private"))
+        if (cachedResponse.contains(CacheDirectives.PRIVATE))
         {
             return false;
         }

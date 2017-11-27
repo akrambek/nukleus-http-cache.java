@@ -33,5 +33,7 @@ public final class HttpHeaders
     public static final String PREFER = "prefer";
     public static final String IF_UNMODIFIED_SINCE = "if-unmodified-since";
     public static final String ETAG = "etag";
+    public static final String DATE = "date";
+    public static final String LAST_MODIFIED = "last-modified";
 
 }

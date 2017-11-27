@@ -27,6 +27,7 @@ import java.util.function.Consumer;
 import org.agrona.DirectBuffer;
 import org.agrona.MutableDirectBuffer;
 import org.agrona.concurrent.UnsafeBuffer;
+import org.reaktivity.nukleus.buffer.BufferPool;
 import org.reaktivity.nukleus.function.MessageConsumer;
 import org.reaktivity.nukleus.http_cache.internal.proxy.cache.CacheControl;
 import org.reaktivity.nukleus.http_cache.internal.proxy.cache.CacheDirectives;
@@ -59,11 +60,17 @@ public class Writer
     private final ResetFW.Builder resetRW = new ResetFW.Builder();
     private final AbortFW.Builder abortRW = new AbortFW.Builder();
 
-    private final MutableDirectBuffer writeBuffer;
+    final ListFW<HttpHeaderFW> requestHeadersRO = new HttpBeginExFW().headers();
 
-    public Writer(MutableDirectBuffer writeBuffer)
+    private final MutableDirectBuffer writeBuffer;
+    private final BufferPool bufferPool;
+
+    public Writer(
+            MutableDirectBuffer writeBuffer,
+            BufferPool bufferPool)
     {
         this.writeBuffer = writeBuffer;
+        this.bufferPool = bufferPool;
     }
 
     public void doHttpBegin(
@@ -247,11 +254,11 @@ public class Writer
 
     public void doHttpPushPromise(
         AnswerableByCacheRequest request,
-        ListFW<HttpHeaderFW> requestHeaders,
         ListFW<HttpHeaderFW> responseHeaders,
         int freshnessExtension,
         String etag)
     {
+        final ListFW<HttpHeaderFW> requestHeaders = request.getRequestHeaders(requestHeadersRO, bufferPool);
         final MessageConsumer acceptReply = request.acceptReply();
         final long acceptReplyStreamId = request.acceptReplyStreamId();
 

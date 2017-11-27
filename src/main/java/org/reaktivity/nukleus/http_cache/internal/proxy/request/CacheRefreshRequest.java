@@ -15,16 +15,24 @@
  */
 package org.reaktivity.nukleus.http_cache.internal.proxy.request;
 
+import org.reaktivity.nukleus.buffer.BufferPool;
+import org.reaktivity.nukleus.http_cache.internal.proxy.cache.Cache;
 import org.reaktivity.nukleus.http_cache.internal.proxy.cache.CacheEntry;
+import org.reaktivity.nukleus.http_cache.internal.types.HttpHeaderFW;
+import org.reaktivity.nukleus.http_cache.internal.types.ListFW;
 
 public class CacheRefreshRequest extends CacheableRequest
 {
+
+    private CacheEntry updatingEntry;
+    private Cache cache;
 
     public CacheRefreshRequest(
             CacheableRequest req,
             int requestSlot,
             String etag,
-            CacheEntry cacheEntry)
+            CacheEntry cacheEntry,
+            Cache cache)
     {
         // TODO eliminate reference /GC duplication (Flyweight pattern?)
         super(req.acceptName,
@@ -36,20 +44,46 @@ public class CacheRefreshRequest extends CacheableRequest
               req.supplyCorrelationId,
               req.supplyStreamId,
               req.requestURLHash(),
-              req.responseBufferPool,
-              req.requestBufferPool(),
               requestSlot,
               req.requestSize(),
               req.router,
               req.authScope(),
               etag);
-        cacheEntry(cacheEntry);
+        this.updatingEntry = cacheEntry;
+        this.cache = cache;
     }
+
+    public void cache(
+        ListFW<HttpHeaderFW> responseHeaders,
+        Cache cache,
+        BufferPool bufferPool)
+    {
+        if (responseHeaders.anyMatch(h ->
+                ":status".equals(h.name().asString()) &&
+                "200".equals(h.value().asString())))
+        {
+            super.cache(responseHeaders, cache, bufferPool);
+        }
+        else
+        {
+            this.purge(bufferPool);
+        }
+}
 
     @Override
     public Type getType()
     {
         return Type.CACHE_REFRESH;
+    }
+
+    @Override
+    public void purge(BufferPool cacheBufferPool)
+    {
+        if (this.state != CacheState.COMMITTED)
+        {
+            this.cache.purge(updatingEntry);
+        }
+        super.purge(cacheBufferPool);
     }
 
 }

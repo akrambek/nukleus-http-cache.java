@@ -13,7 +13,7 @@
  * License for the specific language governing permissions and limitations
  * under the License.
  */
-package org.reaktivity.nukleus.http_cache.internal.streams.server;
+package org.reaktivity.nukleus.http_cache.internal.streams.proxy;
 
 import static java.lang.Thread.sleep;
 import static java.util.concurrent.TimeUnit.SECONDS;
@@ -27,6 +27,8 @@ import org.junit.rules.TestRule;
 import org.junit.rules.Timeout;
 import org.kaazing.k3po.junit.annotation.Specification;
 import org.kaazing.k3po.junit.rules.K3poRule;
+import org.reaktivity.nukleus.http_cache.internal.HttpCacheController;
+import org.reaktivity.nukleus.http_cache.internal.test.HttpCacheCountersRule;
 import org.reaktivity.reaktor.test.ReaktorRule;
 
 public class Rfc7234ProxyIT
@@ -38,6 +40,8 @@ public class Rfc7234ProxyIT
     private final TestRule timeout = new DisableOnDebug(new Timeout(15, SECONDS));
 
     private final ReaktorRule reaktor = new ReaktorRule()
+            .nukleus("http-cache"::equals)
+            .controller(HttpCacheController.class::isAssignableFrom)
             .directory("target/nukleus-itests")
             .commandBufferCapacity(1024)
             .responseBufferCapacity(1024)
@@ -45,8 +49,10 @@ public class Rfc7234ProxyIT
             .nukleus("http-cache"::equals)
             .clean();
 
+    private final HttpCacheCountersRule counters = new HttpCacheCountersRule(reaktor);
+
     @Rule
-    public final TestRule chain = outerRule(reaktor).around(k3po).around(timeout);
+    public final TestRule chain = outerRule(k3po).around(reaktor).around(counters).around(timeout);
 
     @Test
     @Specification({
@@ -57,6 +63,7 @@ public class Rfc7234ProxyIT
     public void shouldProxyGetRequest() throws Exception
     {
         k3po.finish();
+        counters.assertExpectedCacheEntries(1);
     }
 
     @Test
@@ -68,6 +75,7 @@ public class Rfc7234ProxyIT
     public void shouldProxyGetRequestWithBody() throws Exception
     {
         k3po.finish();
+        counters.assertExpectedCacheEntries(0);
     }
 
     @Test
@@ -79,6 +87,7 @@ public class Rfc7234ProxyIT
     public void shouldProxyGetRequestWithTransferEncoding() throws Exception
     {
         k3po.finish();
+        counters.assertExpectedCacheEntries(0);
     }
 
     @Test
@@ -90,6 +99,7 @@ public class Rfc7234ProxyIT
     public void shouldProxyPostRequest() throws Exception
     {
         k3po.finish();
+        counters.assertExpectedCacheEntries(0);
     }
 
 
@@ -102,6 +112,7 @@ public class Rfc7234ProxyIT
     public void shouldProxyRequestWith304() throws Exception
     {
         k3po.finish();
+        counters.assertExpectedCacheEntries(0);
     }
 
     @Test
@@ -113,6 +124,7 @@ public class Rfc7234ProxyIT
     public void shouldCacheMaxAge() throws Exception
     {
         k3po.finish();
+        counters.assertExpectedCacheEntries(1);
     }
 
     @Test
@@ -128,6 +140,7 @@ public class Rfc7234ProxyIT
         sleep(2000);
         k3po.notifyBarrier("WAIT_2_SECONDS");
         k3po.finish();
+        counters.assertExpectedCacheEntries(1);
     }
 
     @Test
@@ -143,6 +156,7 @@ public class Rfc7234ProxyIT
         sleep(1000);
         k3po.notifyBarrier("CACHE_WAITS_1_SEC");
         k3po.finish();
+        counters.assertExpectedCacheEntries(1);
     }
 
     @Test
@@ -158,6 +172,7 @@ public class Rfc7234ProxyIT
         sleep(1000);
         k3po.notifyBarrier("CACHE_EXPIRED");
         k3po.finish();
+        counters.assertExpectedCacheEntries(1);
     }
 
     @Test
@@ -173,6 +188,7 @@ public class Rfc7234ProxyIT
         sleep(1000);
         k3po.notifyBarrier("CACHE_WAIT_1_SEC");
         k3po.finish();
+        counters.assertExpectedCacheEntries(1);
     }
 
     @Test
@@ -188,6 +204,7 @@ public class Rfc7234ProxyIT
         sleep(2000);
         k3po.notifyBarrier("CACHE_EXPIRED");
         k3po.finish();
+        counters.assertExpectedCacheEntries(1);
     }
 
     @Test
@@ -203,6 +220,7 @@ public class Rfc7234ProxyIT
         sleep(1000);
         k3po.notifyBarrier("CACHE_EXPIRED");
         k3po.finish();
+        counters.assertExpectedCacheEntries(1);
     }
 
     @Test
@@ -218,6 +236,7 @@ public class Rfc7234ProxyIT
         sleep(2000);
         k3po.notifyBarrier("CACHE_EXPIRED_AND_STALE_FOR_2_SECONDS");
         k3po.finish();
+        counters.assertExpectedCacheEntries(1); // NOTE lazy cache purge
     }
 
     @Test
@@ -229,6 +248,7 @@ public class Rfc7234ProxyIT
     public void shouldExpireMinFresh() throws Exception
     {
         k3po.finish();
+        counters.assertExpectedCacheEntries(1);
     }
 
     @Test
@@ -240,6 +260,7 @@ public class Rfc7234ProxyIT
     public void shouldRequestCacheMaxAgeZero() throws Exception
     {
         k3po.finish();
+        counters.assertExpectedCacheEntries(0); // In future this can change if we cache the entry
     }
 
     @Test
@@ -251,6 +272,7 @@ public class Rfc7234ProxyIT
     public void shouldRequestCacheMaxAgeZeroAnd304() throws Exception
     {
         k3po.finish();
+        counters.assertExpectedCacheEntries(0); // In future this can change if we cache the entry
     }
 
     @Test
@@ -262,6 +284,7 @@ public class Rfc7234ProxyIT
     public void shouldCacheGetRequestWithNoStore() throws Exception
     {
         k3po.finish();
+        counters.assertExpectedCacheEntries(1);
     }
 
     @Test
@@ -290,6 +313,7 @@ public class Rfc7234ProxyIT
         sleep(1000);
         k3po.notifyBarrier("CACHE_EXPIRED");
         k3po.finish();
+        counters.assertExpectedCacheEntries(1);
     }
 
     @Test
@@ -301,6 +325,7 @@ public class Rfc7234ProxyIT
     public void shouldRequestNoCache() throws Exception
     {
         k3po.finish();
+        counters.assertExpectedCacheEntries(1);
     }
 
     @Test
@@ -312,6 +337,7 @@ public class Rfc7234ProxyIT
     public void shouldRequestOnlyIfCached() throws Exception
     {
         k3po.finish();
+        counters.assertExpectedCacheEntries(1);
     }
 
     @Test
@@ -338,6 +364,7 @@ public class Rfc7234ProxyIT
         sleep(1000);
         k3po.notifyBarrier("CACHE_EXPIRED");
         k3po.finish();
+        counters.assertExpectedCacheEntries(1);
     }
 
     @Test
@@ -349,6 +376,7 @@ public class Rfc7234ProxyIT
     public void shouldBypassCacheOnNoCache() throws Exception
     {
         k3po.finish();
+        counters.assertExpectedCacheEntries(1);
     }
 
     @Test
@@ -360,6 +388,7 @@ public class Rfc7234ProxyIT
     public void shouldCacheSMaxage() throws Exception
     {
         k3po.finish();
+        counters.assertExpectedCacheEntries(1);
     }
 
     @Test
@@ -375,6 +404,7 @@ public class Rfc7234ProxyIT
         sleep(1000);
         k3po.notifyBarrier("CACHE_EXPIRED");
         k3po.finish();
+        counters.assertExpectedCacheEntries(1);
     }
 
     @Test
@@ -390,6 +420,7 @@ public class Rfc7234ProxyIT
         sleep(10);
         k3po.notifyBarrier("CACHE_EXPIRED");
         k3po.finish();
+        counters.assertExpectedCacheEntries(1);
     }
 
     @Test
@@ -401,6 +432,7 @@ public class Rfc7234ProxyIT
     public void shouldCacheDefaultFor10PercentOfLastModified() throws Exception
     {
         k3po.finish();
+        counters.assertExpectedCacheEntries(1);
     }
 
     @Test
@@ -416,6 +448,7 @@ public class Rfc7234ProxyIT
         sleep(5000);
         k3po.notifyBarrier("CACHE_EXPIRED");
         k3po.finish();
+        counters.assertExpectedCacheEntries(1);
     }
 
     @Test
@@ -427,6 +460,7 @@ public class Rfc7234ProxyIT
     public void shouldNotUsePrivateCache() throws Exception
     {
         k3po.finish();
+        counters.assertExpectedCacheEntries(1);
     }
 
     @Test
@@ -438,6 +472,7 @@ public class Rfc7234ProxyIT
     public void shouldNotUseImpliedPrivateCache() throws Exception
     {
         k3po.finish();
+        counters.assertExpectedCacheEntries(1);
     }
 
     @Test
@@ -449,6 +484,7 @@ public class Rfc7234ProxyIT
     public void shouldUseExplicitlyPublicCache() throws Exception
     {
         k3po.finish();
+        counters.assertExpectedCacheEntries(1);
     }
 
     @Test
@@ -460,6 +496,7 @@ public class Rfc7234ProxyIT
     public void shouldNotUseCacheForRequestThatVarys() throws Exception
     {
         k3po.finish();
+        counters.assertExpectedCacheEntries(1);
     }
 
     @Test
@@ -471,6 +508,7 @@ public class Rfc7234ProxyIT
     public void shouldUseCacheForRequestThatMatchesVarys() throws Exception
     {
         k3po.finish();
+        counters.assertExpectedCacheEntries(1);
     }
 
     @Test
@@ -482,6 +520,7 @@ public class Rfc7234ProxyIT
     public void shouldProxyResponseTooLargeToCache() throws Exception
     {
         k3po.finish();
+        counters.assertExpectedCacheEntries(0);
     }
 
     @Test

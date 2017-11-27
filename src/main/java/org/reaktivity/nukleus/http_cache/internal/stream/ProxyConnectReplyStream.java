@@ -124,7 +124,7 @@ final class ProxyConnectReplyStream
             ListFW<HttpHeaderFW> responseHeaders)
     {
         CacheRefreshRequest request = (CacheRefreshRequest) this.streamCorrelation;
-        request.cache(responseHeaders, streamFactory.cache);
+        request.cache(responseHeaders, streamFactory.cache, streamFactory.responseBufferPool);
         this.streamState = this::handleCacheRefresh;
         streamFactory.writer.doWindow(connectReplyThrottle, connectReplyStreamId, 32767, 0);
     }
@@ -141,7 +141,7 @@ final class ProxyConnectReplyStream
         {
             case DataFW.TYPE_ID:
                 final DataFW data = streamFactory.dataRO.wrap(buffer, index, index + length);
-                request.cache(data);
+                request.cache(data, streamFactory.responseBufferPool);
                 streamFactory.writer.doWindow(connectReplyThrottle, connectReplyStreamId, length, 0);
                 break;
             case EndFW.TYPE_ID:
@@ -150,7 +150,7 @@ final class ProxyConnectReplyStream
                 break;
             case AbortFW.TYPE_ID:
             default:
-                request.purge();
+                request.purge(streamFactory.responseBufferPool);
                 break;
         }
     }
@@ -172,7 +172,7 @@ final class ProxyConnectReplyStream
         }
         else
         {
-            ((CacheableRequest) streamCorrelation).purge();
+            ((CacheableRequest) streamCorrelation).purge(streamFactory.responseBufferPool);
             doProxyBegin(responseHeaders);
         }
     }
@@ -183,8 +183,7 @@ final class ProxyConnectReplyStream
     {
         CacheableRequest request = (CacheableRequest) streamCorrelation;
 
-        request.cache(responseHeaders, streamFactory.cache);
-        ListFW<HttpHeaderFW> requestHeaders = request.getRequestHeaders(streamFactory.requestHeadersRO);
+        request.cache(responseHeaders, streamFactory.cache, streamFactory.responseBufferPool);
 
         final MessageConsumer acceptReply = streamCorrelation.acceptReply();
         final long acceptReplyStreamId = streamCorrelation.acceptReplyStreamId();
@@ -203,14 +202,14 @@ final class ProxyConnectReplyStream
                 request.etag()
             );
 
-        streamFactory.writer.doHttpPushPromise(request, requestHeaders, responseHeaders, freshnessExtension, request.etag());
+        streamFactory.writer.doHttpPushPromise(request, responseHeaders, freshnessExtension, request.etag());
         this.streamState = this::handleCacheableRequestResponse;
     }
 
     private void handleCacheableResponse(ListFW<HttpHeaderFW> responseHeaders)
     {
         CacheableRequest request = (CacheableRequest) streamCorrelation;
-        request.cache(responseHeaders, streamFactory.cache);
+        request.cache(responseHeaders, streamFactory.cache, streamFactory.responseBufferPool);
         doProxyBegin(responseHeaders);
         this.streamState = this::handleCacheableRequestResponse;
     }
@@ -227,7 +226,7 @@ final class ProxyConnectReplyStream
         {
             case DataFW.TYPE_ID:
                 final DataFW data = streamFactory.dataRO.wrap(buffer, index, index + length);
-                request.cache(data);
+                request.cache(data, streamFactory.cacheBufferPool);
                 break;
             case EndFW.TYPE_ID:
                 final EndFW end = streamFactory.endRO.wrap(buffer, index, index + length);
@@ -235,7 +234,7 @@ final class ProxyConnectReplyStream
                 break;
             case AbortFW.TYPE_ID:
             default:
-                request.purge();
+                request.purge(streamFactory.responseBufferPool);
                 break;
         }
         this.handleFramesWhenProxying(msgTypeId, buffer, index, length);
@@ -310,7 +309,7 @@ final class ProxyConnectReplyStream
                 break;
             case ResetFW.TYPE_ID:
                 streamFactory.writer.doReset(connectReplyThrottle, connectReplyStreamId);
-                streamCorrelation.purge();
+                streamCorrelation.purge(streamFactory.responseBufferPool);
                 break;
             default:
                 // TODO,  ABORT and RESET

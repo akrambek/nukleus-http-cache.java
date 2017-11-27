@@ -44,4 +44,5 @@ public final class CacheDirectives
         String value = h.value().asString();
         return name.equals(HttpHeaders.CACHE_CONTROL) && value.contains(ONLY_IF_CACHED);
     };
+    public static final String MAX_AGE_0 = "max-age=0";
 }

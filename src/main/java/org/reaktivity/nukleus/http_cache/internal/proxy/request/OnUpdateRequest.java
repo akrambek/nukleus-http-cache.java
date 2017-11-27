@@ -15,7 +15,6 @@
  */
 package org.reaktivity.nukleus.http_cache.internal.proxy.request;
 
-import org.reaktivity.nukleus.buffer.BufferPool;
 import org.reaktivity.nukleus.function.MessageConsumer;
 import org.reaktivity.nukleus.route.RouteManager;
 
@@ -27,8 +26,6 @@ public class OnUpdateRequest extends AnswerableByCacheRequest
         MessageConsumer acceptReply,
         long acceptReplyStreamId,
         long acceptCorrelationId,
-        BufferPool responseBufferPool,
-        BufferPool requestBufferPool,
         int requestSlot,
         int requestSize,
         RouteManager router,
@@ -42,7 +39,6 @@ public class OnUpdateRequest extends AnswerableByCacheRequest
             acceptReplyStreamId,
             acceptCorrelationId,
             router,
-            requestBufferPool,
             requestSlot,
             requestSize,
             requestURLHash,

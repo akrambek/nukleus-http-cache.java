@@ -29,6 +29,7 @@ public class ServerStreamFactoryBuilder implements StreamFactoryBuilder
     private RouteManager router;
     private MutableDirectBuffer writeBuffer;
     private LongSupplier supplyStreamId;
+    private BufferPool bufferPool;
 
     @Override
     public ServerStreamFactoryBuilder setRouteManager(
@@ -65,13 +66,14 @@ public class ServerStreamFactoryBuilder implements StreamFactoryBuilder
     public StreamFactoryBuilder setBufferPoolSupplier(
         Supplier<BufferPool> supplyBufferPool)
     {
+        bufferPool = supplyBufferPool.get();
         return this;
     }
 
     @Override
     public StreamFactory build()
     {
-        return new ServerStreamFactory(router, writeBuffer, supplyStreamId);
+        return new ServerStreamFactory(router, writeBuffer, supplyStreamId, bufferPool);
     }
 
 }

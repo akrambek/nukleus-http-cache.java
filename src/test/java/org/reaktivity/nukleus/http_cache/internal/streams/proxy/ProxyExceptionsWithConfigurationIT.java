@@ -13,7 +13,7 @@
  * License for the specific language governing permissions and limitations
  * under the License.
  */
-package org.reaktivity.nukleus.http_cache.internal.streams.server;
+package org.reaktivity.nukleus.http_cache.internal.streams.proxy;
 
 import static java.util.concurrent.TimeUnit.SECONDS;
 import static org.junit.rules.RuleChain.outerRule;
@@ -48,7 +48,7 @@ public class ProxyExceptionsWithConfigurationIT
             .clean();
 
     @Rule
-    public final TestRule chain = outerRule(reaktor).around(k3po).around(timeout);
+    public final TestRule chain = outerRule(k3po).around(reaktor).around(timeout);
 
     @Ignore("ABORT vs RESET read order not yet guaranteed to match write order")
     @Test

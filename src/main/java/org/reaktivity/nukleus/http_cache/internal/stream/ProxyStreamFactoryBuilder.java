@@ -16,6 +16,7 @@
 package org.reaktivity.nukleus.http_cache.internal.stream;
 
 import java.util.Random;
+import java.util.function.Function;
 import java.util.function.LongSupplier;
 import java.util.function.Supplier;
 
@@ -52,6 +53,8 @@ public class ProxyStreamFactoryBuilder implements StreamFactoryBuilder
     {
         return "\"" + etagPrefix + "a" + etagCnt++ + "\"";
     };
+    private LongSupplier entryAcquires;
+    private LongSupplier entryReleases;
 
     public ProxyStreamFactoryBuilder(
             HttpCacheConfiguration config,
@@ -103,20 +106,28 @@ public class ProxyStreamFactoryBuilder implements StreamFactoryBuilder
     }
 
     @Override
+    public StreamFactoryBuilder setCounterSupplier(
+        Function<String, LongSupplier> supplyCounter)
+    {
+        entryAcquires = supplyCounter.apply("entry.acquires");
+        entryReleases = supplyCounter.apply("entry.releases");
+        return this;
+    }
+
+    @Override
     public StreamFactory build()
     {
         if (cache == null)
         {
             final int slotCapacity = supplyBufferPool.get().slotCapacity();
             final int httpCacheCapacity = config.httpCacheCapacity();
-            this.bufferPool = new Slab(httpCacheCapacity, slotCapacity);
+            this.bufferPool = new Slab(httpCacheCapacity, slotCapacity, entryAcquires, entryReleases);
 
             this.cache = new Cache(
                     scheduler,
                     writeBuffer,
                     bufferPool,
                     correlations,
-                    router,
                     supplyEtag);
         }
         return new ProxyStreamFactory(

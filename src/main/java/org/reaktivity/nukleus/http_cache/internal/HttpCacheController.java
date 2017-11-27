@@ -169,4 +169,8 @@ public final class HttpCacheController implements Controller
         return controllerSpi.doUnroute(unroute.typeId(), unroute.buffer(), unroute.offset(), unroute.sizeof());
     }
 
+    public long count(String name)
+    {
+        return controllerSpi.doCount(name);
+    }
 }

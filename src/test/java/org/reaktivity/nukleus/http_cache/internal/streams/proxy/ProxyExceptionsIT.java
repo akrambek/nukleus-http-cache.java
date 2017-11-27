@@ -13,9 +13,10 @@
  * License for the specific language governing permissions and limitations
  * under the License.
  */
-package org.reaktivity.nukleus.http_cache.internal.streams.server;
+package org.reaktivity.nukleus.http_cache.internal.streams.proxy;
 
 import static java.util.concurrent.TimeUnit.SECONDS;
+import static org.junit.Assert.assertEquals;
 import static org.junit.rules.RuleChain.outerRule;
 
 import org.junit.Rule;
@@ -25,6 +26,8 @@ import org.junit.rules.TestRule;
 import org.junit.rules.Timeout;
 import org.kaazing.k3po.junit.annotation.Specification;
 import org.kaazing.k3po.junit.rules.K3poRule;
+import org.reaktivity.nukleus.http_cache.internal.HttpCacheController;
+import org.reaktivity.nukleus.http_cache.internal.test.HttpCacheCountersRule;
 import org.reaktivity.reaktor.test.ReaktorRule;
 
 public class ProxyExceptionsIT
@@ -33,9 +36,11 @@ public class ProxyExceptionsIT
         .addScriptRoot("route", "org/reaktivity/specification/nukleus/http_cache/control/route")
         .addScriptRoot("streams", "org/reaktivity/specification/nukleus/http_cache/streams/proxy/behavior");
 
-    private final TestRule timeout = new DisableOnDebug(new Timeout(15, SECONDS));
+    private final TestRule timeout = new DisableOnDebug(new Timeout(25, SECONDS));
 
     private final ReaktorRule reaktor = new ReaktorRule()
+            .nukleus("http-cache"::equals)
+            .controller(HttpCacheController.class::isAssignableFrom)
             .directory("target/nukleus-itests")
             .commandBufferCapacity(1024)
             .responseBufferCapacity(1024)
@@ -43,8 +48,10 @@ public class ProxyExceptionsIT
             .nukleus("http-cache"::equals)
             .clean();
 
+    private final HttpCacheCountersRule counters = new HttpCacheCountersRule(reaktor);
+
     @Rule
-    public final TestRule chain = outerRule(reaktor).around(k3po).around(timeout);
+    public final TestRule chain = outerRule(k3po).around(reaktor).around(counters).around(timeout);
 
     @Test
     @Specification({
@@ -55,6 +62,7 @@ public class ProxyExceptionsIT
     public void shouldAcceptSentAbort() throws Exception
     {
         k3po.finish();
+        counters.assertExpectedCacheEntries(0);
     }
 
     @Test
@@ -66,6 +74,8 @@ public class ProxyExceptionsIT
     public void shouldHandleAbortSentOnCacheableRequest() throws Exception
     {
         k3po.finish();
+        assertEquals(1, counters.slabAquires() - counters.slabReleases());
+        // We proceed with request out back anyways, TODO, consider adding to test response returning and getting cached
     }
 
     @Test
@@ -77,6 +87,7 @@ public class ProxyExceptionsIT
     public void shouldConnectReplySentAbort() throws Exception
     {
         k3po.finish();
+        counters.assertExpectedCacheEntries(0);
     }
 
     @Test
@@ -88,6 +99,7 @@ public class ProxyExceptionsIT
     public void shouldConnectSentReset() throws Exception
     {
         k3po.finish();
+        counters.assertExpectedCacheEntries(0);
     }
 
     @Test
@@ -99,6 +111,7 @@ public class ProxyExceptionsIT
     public void shouldAcceptReplySentReset() throws Exception
     {
         k3po.finish();
+        counters.assertExpectedCacheEntries(0);
     }
 
     @Test
@@ -109,6 +122,8 @@ public class ProxyExceptionsIT
     public void shouldClientSentAbortOnScheduledPoll() throws Exception
     {
         k3po.finish();
+//        counters.assertExpectedCacheEntries(0); // TODO, fix. Sporadically failing today,
+                                                  // won't happen with current h2 nukleus implementation
     }
 
 }

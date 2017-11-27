@@ -26,7 +26,6 @@ import org.reaktivity.nukleus.route.RouteManager;
 public abstract class AnswerableByCacheRequest extends Request
 {
 
-    private final BufferPool requestBufferPool;
     private int requestSlot;
     private final int requestSize;
     private final int requestURLHash;
@@ -39,7 +38,6 @@ public abstract class AnswerableByCacheRequest extends Request
             long acceptReplyStreamId,
             long acceptCorrelationId,
             RouteManager router,
-            BufferPool requestBufferPool,
             int requestSlot,
             int requestSize,
             int requestURLHash,
@@ -47,7 +45,6 @@ public abstract class AnswerableByCacheRequest extends Request
             String etag)
     {
         super(acceptName, acceptReply, acceptReplyStreamId, acceptCorrelationId, router);
-        this.requestBufferPool = requestBufferPool;
         this.requestSlot = requestSlot;
         this.requestSize = requestSize;
         this.requestURLHash = requestURLHash;
@@ -55,9 +52,11 @@ public abstract class AnswerableByCacheRequest extends Request
         this.etag = etag;
     }
 
-    public final ListFW<HttpHeaderFW> getRequestHeaders(ListFW<HttpHeaderFW> requestHeadersRO)
+    public final ListFW<HttpHeaderFW> getRequestHeaders(
+            ListFW<HttpHeaderFW> requestHeadersRO,
+            BufferPool pool)
     {
-        final MutableDirectBuffer buffer = requestBufferPool.buffer(requestSlot);
+        final MutableDirectBuffer buffer = pool.buffer(requestSlot);
         return requestHeadersRO.wrap(buffer, 0, requestSize);
     }
 
@@ -76,11 +75,6 @@ public abstract class AnswerableByCacheRequest extends Request
         return requestURLHash;
     }
 
-    public final BufferPool requestBufferPool()
-    {
-        return requestBufferPool;
-    }
-
     public final int requestSize()
     {
         return requestSize;
@@ -91,11 +85,11 @@ public abstract class AnswerableByCacheRequest extends Request
         return requestSlot;
     }
 
-    public void purge()
+    public void purge(BufferPool bufferPool)
     {
         if (requestSlot != Slab.NO_SLOT)
         {
-            requestBufferPool.release(requestSlot);
+            bufferPool.release(requestSlot);
             this.requestSlot = Slab.NO_SLOT;
         }
     }
